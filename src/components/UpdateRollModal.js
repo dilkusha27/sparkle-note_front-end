@@ -4,36 +4,43 @@ import axios from "axios";
 import { LetterClick } from "../components/MuiButton";
 import BorderColorIcon from "@mui/icons-material/BorderColor";
 import { API } from "../config";
+import { useQueryClient } from "@tanstack/react-query";
 
 const UpdateRollModal = ({ closeModal, roll }) => {
   const { rollId, rollName } = roll;
   const token = localStorage.getItem("Authorization");
-  const [rollTitle, setRollTitle] = useState("");
+  const [rollTitle, setRollTitle] = useState(rollName);
+  const queryClient = useQueryClient();
 
-  // 컴포넌트가 처음 렌더링될 때 rollTitle 초기화
-  useEffect(() => {
-    if (roll && roll.rollName) {
-      setRollTitle(roll.rollName);
+  const updateRollMutation = useMutation(
+    (rollData) => axios.put(API.UPDATE_ROLL(rollId), rollData, {
+      headers: {
+        Authorization: token
+      }
+    }),
+    {
+      onSuccess: (response) => {
+        alert("학급명이 수정되었습니다.");
+        setRollTitle(response.data.data.rollName)
+        queryClient.invalidateQueries("rolls");
+        closeModal();
+      },
+      onError: (error) => {
+        console.error("학급명 수정 실패", error);
+        alert("학급명 수정 실패", error);
+      }
     }
-  }, [roll]);
+  )
+
+  const updateRoll = () => {
+    if (!rollTitle.trim()){
+      updateRollMutation.mutate({ rollName: rollTitle });
+    }
+  };
 
   const handleOverlayClick = (e) => {
     if (e.target === e.currentTarget) {
       closeModal();
-    }
-  };
-
-  const updateRoll = async () => {
-    try {
-      await axios.put(
-        API.UPDATE_ROLL(rollId),
-        { rollName: rollTitle },
-        { headers: { Authorization: token } }
-      );
-      alert("학급명이 수정되었습니다.");
-      window.location.reload();
-    } catch (error) {
-      console.error("롤 제목 수정에 실패:", error);
     }
   };
 
