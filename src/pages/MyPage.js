@@ -3,70 +3,63 @@ import { useNavigate } from "react-router-dom";
 import '../styles/pages/MyPage.css';
 import RollItem from "../components/RollItem";
 import { CustomButton2 , LetterClick } from '../components/MuiButton';
-import {UserLogout} from '../components/MuiIcon';
+import { UserLogout } from '../components/MuiIcon';
 import axios from "axios";
 import CreateRollModal from "../components/CreateRollModal";
 import AddIcon from '@mui/icons-material/Add';
 import { API } from "../config";
 import { ArrowDown } from "lucide-react";
+import { useQuery } from "@tanstack/react-query";
+import useRollStore from "../stores/useRollStore";
 
 
 const MyPage = () => {
     const navigate = useNavigate();
-    const [userName, setUserName] = useState("");
-    const [rolls, setRolls] = useState([]);
-    const [role, setRole] = useState();
-    const [showGuide, setShowGuide] = useState(true);
-    const [isCreateRollModalOpen, setIsCreateRollModalOpen] = useState(false);
+    const {
+        showGuide, isCreateRollModalOpen, userInfo, rolls,
+        setShowGuide, toggleCreateRollModal, setUserInfo, setRolls
+    } = useRollStore();
+
+    // const [showGuide, setShowGuide] = useState(true);
+    // const [isCreateRollModalOpen, setIsCreateRollModalOpen] = useState(false);
+
     const token = localStorage.getItem("Authorization");
 
-    useEffect(() => {
-        const fetchData = async () => {
+    if (!token) {
+        alert("로그인 상태가 아닙니다. 로그인 후 이용해주세요.");
+        navigate("/");
+        return null; // 컴포넌트 렌더링 중단
+    }
 
-            if (!token) {
-                alert("로그인 상태가 아닙니다. 로그인 후 이용해주세요.");
-                navigate('/');
-                return;
+    // const { data: userInfo } = useQuery("userInfo", () => 
+    useQuery("userInfo", () => 
+        axios.get(API.TEACHER_PROFILE, {
+            headers: { Authorization: token }
+        }).then((res) => res.data.data), // 응답 데이터 중 res.data.data만 반환 
+        {
+            onError: (error) => {
+                console.error("사용자 정보 불러오기 실패", error);
+                navigate("/");
+                return null; // 컴포넌트 렌더링 중단
             }
+        }
+    )
 
-            try {
-                // 사용자 정보 가져오기
-                const userResponse = await axios.get(
-                    API.TEACHER_PROFILE,
-                    { headers: { "Authorization": token } }
-                );
+    // const { data: rolls } = useQuery("rolls", () => 
+    useQuery("rolls", () => 
+            axios.get(API.GET_ROLL, {
+            headers: { Authorization: token },
+        }).then((res) => res.data.data) 
+    );
 
-                if (!userResponse === 200) {
-                    throw new Error('Failed to fetch user info');
-                }
-
-                const userData = userResponse.data;
-                console.log("User Info Response:", userData);
-                setUserName(userData.data.name);
-                setRole(userData.data.role);
-
-                // 롤 데이터 가져오기
-                const rollResponse = await axios.get(
-                    API.GET_ROLL,
-                    { headers: { "Authorization": token } }
-                );
-
-                if (!rollResponse === 200) {
-                    throw new Error('Failed to fetch roll data');
-                }
-
-                const rollData = rollResponse.data;
-                console.log("Roll Data Response:", rollData);
-                setRolls(rollData.data || []); // 빈 배열 fallback 추가
-
-            } catch (error) {
-                console.error('Error:', error);
-                navigate('/');
-            }
-        };
-
-        fetchData();
-    }, [navigate]);
+    /** useQuery("rolls")가 API 호출하는 경우
+        
+        1. 컴포넌트가 처음 렌더링될 때
+        2. queryClient.invalidateQueries("rolls")가 호출될 때
+        3. 쿼리의 Stale 상태일 때: 데이터가 오래되었다고 판단되면 다시 호출.
+        4. 리페치가 강제로 트리거될 때: 수동으로 호출하거나 특정 옵션으로 설정된 경우.
+    
+    */
 
     useEffect(() => {
         const timer = setTimeout(() => {
@@ -76,20 +69,18 @@ const MyPage = () => {
     }, []);
 
     const teacherlogout = () => {
-        // localStorage.removeItem("Authorization");
-        // localStorage.removeItem("RefreshToken");
         localStorage.clear();
         navigate('/');
     };
 
-    const closeModal = () => {
-        setIsCreateRollModalOpen(false);
-    }
+    // const closeModal = () => {
+    //     setIsCreateRollModalOpen(false);
+    // }
 
     return (
         <div className="my-page-container">
             <div className="greeting-container">
-                <p className="greeting"><span>{userName}</span> 선생님, 안녕하세요! 🙇‍♂️</p>
+                <p className="greeting"><span>{userInfo.name}</span> 선생님, 안녕하세요! 🙇‍♂️</p>
                 <LetterClick className="logout-button" onClick={teacherlogout}>
                     <UserLogout />
                     <p>LOGOUT</p>
@@ -112,7 +103,7 @@ const MyPage = () => {
                             <RollItem
                                 key={roll.rollId}
                                 roll={roll}
-                                role={role}
+                                role={userInfo.role}
                                 className={showGuide ? 'highlight' : ''}
                             />
                         ))}
@@ -121,14 +112,14 @@ const MyPage = () => {
                     <p className="no-class">등록된 학급이 없습니다.</p>
                 )}
                 <CustomButton2
-                    onClick={() => setIsCreateRollModalOpen(true)}
+                    onClick={toggleCreateRollModal}
                     className="create-roll"
                 >
                     <AddIcon style={{marginRight:"5px"}}></AddIcon> 학급 생성
                 </CustomButton2>
             </div>
 
-            {isCreateRollModalOpen && <CreateRollModal closeModal={closeModal} /> }
+            {isCreateRollModalOpen && <CreateRollModal closeModal={toggleCreateRollModal} /> }
 
         </div>
     );
