@@ -4,11 +4,36 @@ import axios from "axios";
 import { LetterClick } from '../components/MuiButton';
 import AddIcon from '@mui/icons-material/Add';
 import { API } from "../config";
+import { useQueryClient } from "@tanstack/react-query";
 
 const CreateRollModal = ({ closeModal }) => {
 
     const token = localStorage.getItem("Authorization");
     const [rollTitle, setRollTitle] = useState('');
+    const queryClient = useQueryClient();
+
+    // React Query로 학급 생성 관리
+    const createRollMutation = useMutation(
+        (rollData) => 
+            axios.post(API.CREATE_ROLL, rollData, {
+                headers: {
+                    "Authorization": token
+                }
+            }),
+        {
+            onSuccess: (response) => {
+                // addRoll(response.data.data);
+                queryClient.invalidateQueries("rolls");
+                alert("새 학급이 생성되었습니다.");
+                setRollTitle('');
+                closeModal();
+            },
+            onError: (error) => {
+                console.error("롤 생성 실패", error);
+                alert("학급 생성 중 오류가 발생했습니다.");
+            }
+        }
+    )
 
     const handleOverlayClick = (e) => {
         if (e.target === e.currentTarget) { // 배경을 클릭했는지 확인
@@ -16,27 +41,12 @@ const CreateRollModal = ({ closeModal }) => {
         }    
     }
 
-    const createRoll = async () => {
-        try {
-            await axios.post(
-                API.CREATE_ROLL, 
-                { rollName: rollTitle }, 
-                { headers: { "Authorization": token } }
-            );
-            alert("새 학급이 생성되었습니다.");
-            setRollTitle(''); // 입력 내용 초기화
-            window.location.reload();
-        } catch (error) {
-            console.log('롤 생성 실패', error)
+    const createRoll = () => {
+        if (rollTitle.trim()) {
+            createRollMutation.mutate({ rollName: rollTitle });
         }
-
-        /** 
-            1. 'rollName : 사용자의 요청값'을 주면서 롤 생성 API를 불러온다
-            2. 응답을 받으면 RollItem.js에서 띄워준다.
-            3. 롤 조회를 하는 API를 다시 불러온다.
-        */
-    };
-
+    }
+    
     return (
         <div className="modal-overlay" onClick={handleOverlayClick}> {/* 모달 배경 */}
             <div className="modal-content" onClick={(e) => {e.stopPropagation()}}> {/* 모달 내용 */}
@@ -71,7 +81,7 @@ const CreateRollModal = ({ closeModal }) => {
                     className="roll-create-button" 
                     onClick={createRoll}
                     disabled={!rollTitle.trim()} // 내용이 없을 때 버튼 비활성화
-                    style={{marginBottom:"5px"}}
+                    style={{ marginBottom:"5px" }}
                 >등록</LetterClick>
             </div>
         </div>
