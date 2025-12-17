@@ -24,3 +24,6 @@ yarn-error.log*
 
 /db
 /docker-compose.yml
+
+# ...existing code...
+/Front-End-Structuring-Check-List_v1_20251217.txt
