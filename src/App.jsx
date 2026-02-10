@@ -2,6 +2,7 @@ import { Link, Route, Routes } from 'react-router-dom'
 import { AppBar, Box, Container, Toolbar, Typography } from '@mui/material'
 import HomePage from './pages/HomePage.jsx'
 import StudentSigninPage from './pages/StudentSigninPage.jsx'
+import MyPage from './pages/MyPage.jsx'
 
 export default function App() {
   return (
@@ -22,6 +23,14 @@ export default function App() {
           >
             StudentSignin
           </Typography>
+          <Typography
+            component={Link}
+            to="/mypage"
+            color="inherit"
+            sx={{ textDecoration: 'none' }}
+          >
+            MyPage
+          </Typography>
         </Toolbar>
       </AppBar>
 
@@ -29,6 +38,7 @@ export default function App() {
         <Routes>
           <Route path="/" element={<HomePage />} />
           <Route path="/student/signin" element={<StudentSigninPage />} />
+          <Route path="/mypage" element={<MyPage />} />
         </Routes>
       </Container>
     </Box>
