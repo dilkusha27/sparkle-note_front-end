@@ -2,12 +2,22 @@ import axios from 'axios'
 import { AppError } from './AppError.js'
 import { APP_ERROR_CODES } from './appErrorCodes.js'
 
-export function fromAxiosError(error) {
+function extractTraceId(error, fallbackTraceId) {
+  if (!fallbackTraceId) return undefined
+  const responseTraceId = error?.response?.headers?.['x-trace-id']
+  const requestTraceId = error?.config?.headers?.['x-trace-id']
+  return responseTraceId || requestTraceId || fallbackTraceId
+}
+
+export function fromAxiosError(error, context = {}) {
+  const traceId = extractTraceId(error, context.traceId)
+
   if (!axios.isAxiosError(error)) {
     return new AppError({
       code: APP_ERROR_CODES.UNKNOWN,
       message: 'Unknown error',
       cause: error,
+      traceId,
     })
   }
 
@@ -16,6 +26,7 @@ export function fromAxiosError(error) {
       code: APP_ERROR_CODES.NETWORK_ERROR,
       message: 'Network error',
       cause: error,
+      traceId,
     })
   }
 
@@ -27,6 +38,7 @@ export function fromAxiosError(error) {
       message: 'Unauthenticated',
       cause: error,
       details: error.response.data,
+      traceId,
     })
   }
 
@@ -37,6 +49,7 @@ export function fromAxiosError(error) {
       message: 'Forbidden',
       cause: error,
       details: error.response.data,
+      traceId,
     })
   }
 
@@ -47,6 +60,7 @@ export function fromAxiosError(error) {
       message: 'Not found',
       cause: error,
       details: error.response.data,
+      traceId,
     })
   }
 
@@ -56,6 +70,6 @@ export function fromAxiosError(error) {
     message: 'HTTP error',
     cause: error,
     details: error.response.data,
+    traceId,
   })
 }
-

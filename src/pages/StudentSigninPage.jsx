@@ -1,104 +1,35 @@
-import { z } from 'zod'
-import { zodResolver } from '@hookform/resolvers/zod'
-import { useForm } from 'react-hook-form'
-import { useMemo, useState } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { Alert, Box, Button, Stack, TextField, Typography } from '@mui/material'
-import { apiClient } from '../shared/api/apiClient.js'
-import { isAppError } from '../shared/error/AppError.js'
-import { toUserMessage } from '../shared/error/toUserMessage.js'
-import { resolveReturnTo } from '../shared/auth/resolveReturnTo.js'
-
-const schema = z.object({
-  rollUrl: z
-    .string()
-    .trim()
-    .min(1, '롤링페이퍼 주소 키를 입력해주세요.'),
-  classCode: z
-    .string()
-    .trim()
-    .min(1, '학급코드를 입력해주세요.'),
-  studentName: z
-    .string()
-    .trim()
-    .min(1, '이름을 입력해주세요.'),
-  pinNumber: z
-    .string()
-    .trim()
-    .regex(/^\d{4}$/, '비밀번호는 4자리 숫자여야 합니다.'),
-})
-
-const defaultValues = {
-  rollUrl: '',
-  classCode: '',
-  studentName: '',
-  pinNumber: '',
-}
+import imageLogo from '../assets/images/logo/image_logo.png'
+import SocialLoginButtons from '../components/auth/SocialLoginButtons.jsx'
+import { useStudentSigninModel } from '../shared/hooks/useStudentSigninModel.js'
 
 export default function StudentSigninPage() {
   const [searchParams] = useSearchParams()
   const navigate = useNavigate()
-  const [submitError, setSubmitError] = useState('')
   const rollUrlParam = searchParams.get('url') ?? ''
   const returnToParam = searchParams.get('returnTo') ?? ''
-
-  const resolvedDefaultValues = useMemo(() => {
-    return {
-      ...defaultValues,
-      rollUrl: rollUrlParam,
-    }
-  }, [rollUrlParam])
-
-  const {
-    register,
-    handleSubmit,
-    formState: { errors, isSubmitting },
-  } = useForm({
-    resolver: zodResolver(schema),
-    defaultValues: resolvedDefaultValues,
+  const { submitError, register, errors, isSubmitting, submit } = useStudentSigninModel({
+    rollUrlParam,
+    returnToParam,
+    onSuccessNavigate: (path) => navigate(path, { replace: true }),
   })
-
-  const handleSuccessNavigate = (rollUrl) => {
-    const fallbackPath = `/roll/${rollUrl}/join`
-    const returnTo = resolveReturnTo(returnToParam, fallbackPath)
-    navigate(returnTo, { replace: true })
-  }
-
-  const onSubmit = async (values) => {
-    setSubmitError('')
-    const payload = {
-      name: values.studentName.trim(),
-      classCode: values.classCode.trim(),
-      pinNumber: values.pinNumber.trim(),
-    }
-
-    try {
-      await apiClient.post(`/roll/${values.rollUrl}/join`, payload)
-      handleSuccessNavigate(values.rollUrl)
-    } catch (error) {
-      if (isAppError(error)) {
-        setSubmitError(toUserMessage(error))
-        return
-      }
-
-      setSubmitError('요청 처리 중 오류가 발생했어요.')
-    }
-  }
 
   return (
     <Box sx={{ maxWidth: 520 }}>
       <Stack spacing={3}>
         <Box
           component="img"
-          src="/images/logo/image_logo.png"
+          src={imageLogo}
           alt="Sparkle Note"
           sx={{ width: 180, height: 'auto' }}
         />
+        <SocialLoginButtons />
         <Typography variant="h4">학생 입장</Typography>
         {submitError ? <Alert severity="error">{submitError}</Alert> : null}
         <Box
           component="form"
-          onSubmit={handleSubmit(onSubmit)}
+          onSubmit={submit}
           sx={{ display: 'grid', gap: 2 }}
         >
           <TextField

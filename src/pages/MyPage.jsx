@@ -1,72 +1,85 @@
-import { useEffect, useState } from 'react'
-import { Alert, Box, CircularProgress, Stack, Typography } from '@mui/material'
-import { apiClient } from '../shared/api/apiClient.js'
-import { isAppError } from '../shared/error/AppError.js'
-import { toUserMessage } from '../shared/error/toUserMessage.js'
+import { useNavigate } from 'react-router-dom'
+import { Box, Button, Stack, Typography } from '@mui/material'
+import RollItem from '../components/roll/RollItem.jsx'
+import CreateRollModal from '../components/roll/CreateRollModal.jsx'
+import UpdateRollModal from '../components/roll/UpdateRollModal.jsx'
+import RequestStateView from '../components/common/RequestStateView.jsx'
+import { useMyPageModel } from '../shared/hooks/useMyPageModel.js'
 
 export default function MyPage() {
-  const [loading, setLoading] = useState(true)
-  const [errorMessage, setErrorMessage] = useState('')
-  const [rolls, setRolls] = useState([])
-
-  useEffect(() => {
-    let cancelled = false
-
-    const fetchMyRolls = async () => {
-      setLoading(true)
-      setErrorMessage('')
-
-      try {
-        const response = await apiClient.get('/roll/me')
-        if (cancelled) return
-
-        const data = response?.data?.data ?? []
-        setRolls(Array.isArray(data) ? data : [])
-      } catch (error) {
-        if (cancelled) return
-
-        if (isAppError(error)) {
-          setErrorMessage(toUserMessage(error))
-          return
-        }
-
-        setErrorMessage('요청 처리 중 오류가 발생했어요.')
-      } finally {
-        if (!cancelled) {
-          setLoading(false)
-        }
-      }
-    }
-
-    fetchMyRolls()
-
-    return () => {
-      cancelled = true
-    }
-  }, [])
+  const navigate = useNavigate()
+  const {
+    loading,
+    errorMessage,
+    rolls,
+    profile,
+    createOpen,
+    editingRoll,
+    setCreateOpen,
+    setEditingRoll,
+    getRollId,
+    handleEnterRoll,
+    handleCopyUrl,
+    handleDelete,
+    handleRollCreated,
+    handleRollUpdated,
+  } = useMyPageModel({
+    onEnterRoll: ({ rollId, rollName, rollUrl, role, currentStudentId }) => {
+      navigate(`/roll/${rollUrl}/join`, {
+        state: {
+          rollId,
+          rollName,
+          role,
+          currentStudentId,
+        },
+      })
+    },
+  })
 
   return (
     <Box sx={{ maxWidth: 720 }}>
       <Stack spacing={2}>
-        <Typography variant="h4">MyPage</Typography>
-        {loading ? <CircularProgress size={28} /> : null}
-        {errorMessage ? <Alert severity="error">{errorMessage}</Alert> : null}
-        {!loading && !errorMessage && rolls.length === 0 ? (
-          <Typography color="text.secondary">등록된 롤링페이퍼가 없습니다.</Typography>
-        ) : null}
-        {!loading && !errorMessage && rolls.length > 0 ? (
+        <Stack direction="row" justifyContent="space-between" alignItems="center">
+          <Typography variant="h4">
+            {profile.name ? `${profile.name} 선생님` : 'MyPage'}
+          </Typography>
+          <Button variant="contained" onClick={() => setCreateOpen(true)}>
+            학급 생성
+          </Button>
+        </Stack>
+
+        <RequestStateView
+          loading={loading}
+          errorMessage={errorMessage}
+          isEmpty={rolls.length === 0}
+          emptyMessage="등록된 롤링페이퍼가 없습니다."
+        >
           <Stack spacing={1}>
             {rolls.map((roll) => (
-              <Box key={roll.rollId ?? roll.id} sx={{ p: 2, border: '1px solid #e0e0e0' }}>
-                <Typography variant="subtitle1">
-                  {roll.rollName ?? roll.name ?? '이름 없음'}
-                </Typography>
-                <Typography color="text.secondary">{roll.url ?? 'url 없음'}</Typography>
-              </Box>
+              <RollItem
+                key={getRollId(roll)}
+                roll={roll}
+                onEnter={handleEnterRoll}
+                onCopyUrl={handleCopyUrl}
+                onEdit={(item) => setEditingRoll(item)}
+                onDelete={handleDelete}
+              />
             ))}
           </Stack>
-        ) : null}
+        </RequestStateView>
       </Stack>
+
+      <CreateRollModal
+        open={createOpen}
+        onClose={() => setCreateOpen(false)}
+        onCreated={handleRollCreated}
+      />
+      <UpdateRollModal
+        open={Boolean(editingRoll)}
+        roll={editingRoll}
+        onClose={() => setEditingRoll(null)}
+        onUpdated={handleRollUpdated}
+      />
     </Box>
   )
 }
